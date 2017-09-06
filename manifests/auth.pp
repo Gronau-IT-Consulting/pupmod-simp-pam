@@ -92,7 +92,7 @@ define pam::auth (
     $_content = $content
   }
   else {
-    $_top_var = getvar("iptables::${name}")
+    $_top_var = getvar("pam::${name}")
     if $_top_var {
       $_content = $_top_var
     }
@@ -107,6 +107,44 @@ define pam::auth (
     group   => 'root',
     mode    => '0644',
     content => $_content
+  }
+
+  if $name == 'system' and $facts['os']['name'] in ['Debian','Ubuntu'] {
+    # Debian/Ubuntu use common-{account,auth,password,session,session-noninteractive}
+    # instead of a single system-auth in /etc/pam.d, so create symlinks / empty files.
+    # Otherwise modules will be executed multiple times.
+    file { "${basedir}/common-account":
+      ensure => 'file',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => '',
+    }
+    file { "${basedir}/common-auth":
+      ensure => 'link',
+      target => $target
+    }
+    file { "${basedir}/common-password":
+      ensure => 'file',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => '',
+    }
+    file { "${basedir}/common-session":
+      ensure => 'file',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => '',
+    }
+    file { "${basedir}/common-session-noninteractive":
+      ensure => 'file',
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      content => '',
+    }
   }
 
   if ! $preserve_ac {

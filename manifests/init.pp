@@ -290,14 +290,32 @@ class pam (
         content => $_other_content
       }
       if ($disable_authconfig == true) {
-        # Get rid of authconfig so that the tool can't be used to modify PAM.
         case $facts['os']['name'] {
           'RedHat','CentOS': {
+            # Get rid of authconfig so that the tool can't be used to modify PAM.
             file { [
               '/usr/sbin/authconfig',
               '/usr/sbin/authconfig-tui'
               ]:
                 ensure => 'absent'
+            }
+          }
+          'Debian','Ubuntu': {
+            # Configure libpam-runtime to not override local changes
+            ensure_resource ('file', '/var/local/debconf', {'ensure' => 'directory'})
+
+            file { '/var/local/debconf/libpam-runtime.preseed':
+              content => "libpam-runtime\tlibpam-runtime/override\tboolean\tfalse\n",
+              mode    => '0600',
+              backup  => false,
+              notify  => Exec['dpkg-reconfigure-libpam-runtime'],
+            }
+
+            exec { 'dpkg-reconfigure-libpam-runtime':
+              command     => 'debconf-set-selections < /var/local/debconf/libpam-runtime.preseed && \
+                dpkg-reconfigure --frontend=noninteractive libpam-runtime',
+              refreshonly => true,
+              path        => ['/bin', '/sbin', '/usr/bin', '/usr/sbin'],
             }
           }
           default: {
